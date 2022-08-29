@@ -119,6 +119,40 @@ exports.resetPassword = CatchAsync(async (req, res, next) => {
   });
 });
 
+exports.updatePassword = CatchAsync(async (req, res, next) => {
+  const id = req.user.id;
+  const user = await User.findById(id).select(`+password`);
+
+  if (!user.correctPassword(req.body.currentPassword, user.password))
+    return next(new AppError(`Password doesnot Match`, 401));
+
+  user.password = req.body.password;
+  user.confirmPassword = req.body.confirmPassword;
+  await user.save();
+
+  const token = creaetToken(user._id, user.email);
+
+  const cookieOptions = {
+    expiresIn: Date.now(
+      Date.now() + process.env.COOKIE_EXPIRES * 24 * 60 * 60 * 1000
+    ),
+    httpOnly: true,
+    secure: false,
+  };
+
+  res.cookie("token", token, cookieOptions);
+
+  user.password = undefined;
+
+  res.status(200).json({
+    status: `Success`,
+    token,
+    data: { user },
+  });
+});
+
+///// *********** Route protection *************** //////
+
 exports.protect = CatchAsync(async (req, res, next) => {
   let token;
   if (
