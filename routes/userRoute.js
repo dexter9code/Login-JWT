@@ -7,7 +7,7 @@ router
   .route(`/`)
   .get(
     authController.protect,
-    authController.restrict("admin"),
+    authController.restrict("admin", "user"),
     userController.getAllUser
   );
 
