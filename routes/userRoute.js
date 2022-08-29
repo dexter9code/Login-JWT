@@ -3,7 +3,13 @@ const router = express.Router();
 const userController = require("../controller/userController");
 const authController = require("../controller/authController");
 
-router.route(`/`).get(authController.protect, userController.getAllUser);
+router
+  .route(`/`)
+  .get(
+    authController.protect,
+    authController.restrict("admin"),
+    userController.getAllUser
+  );
 
 router.route(`/signup`).post(authController.singup);
 router.route(`/signin`).post(authController.singin);
