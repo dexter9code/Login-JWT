@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 const userSchema = mongoose.Schema({
   name: {
@@ -49,6 +50,34 @@ const userSchema = mongoose.Schema({
   passwordResetExpires: Date,
   active: { type: Boolean, default: true, select: false },
 });
+
+// document Middleware
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
+  this.password = await bcrypt.hash(this.password, 10);
+
+  this.confirmPassword = undefined;
+  next();
+});
+
+userSchema.pre("save", function (next) {
+  if (!this.isModified("password") || this.isNew) return next();
+
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+
+// query Middlware
+userSchema.pre(/^find/, function (next) {
+  this.find({ active: { $ne: false } });
+  next();
+});
+
+// instance method
+userSchema.methods.correctPassword = async function (realPass, userPass) {
+  return await bcrypt.compare(realPass, userPass);
+};
 
 const User = mongoose.model("User", userSchema);
 

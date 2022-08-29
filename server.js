@@ -2,11 +2,11 @@ const mongoose = require("mongoose");
 const app = require("./app");
 const dotenv = require("dotenv");
 
-dotenv.config({ path: `${__dirname}/config.env` });
+dotenv.config({ path: "./config.env" });
 
 mongoose
   .connect(process.env.DB)
-  .then(() => `Connected to the mongodb...`)
+  .then(() => console.log(`Connected to the mongodb...`))
   .catch((err) => `Error while connecting to the mongodb ${err.messsage}`);
 
 const PORT = process.env.PORT || 8989;
