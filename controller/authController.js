@@ -3,11 +3,44 @@ const _ = require("lodash");
 const CatchAsync = require("../utils/CatchAsync");
 const AppError = require("../utils/ErrorHandler");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
+
+const creaetToken = (id, email) => {
+  return jwt.sign({ id, email }, process.env.JWT_KEY, {
+    expiresIn: process.env.JWT_EXP,
+  });
+};
+
+// const sendToken = (user, statusCode, res) => {
+//   const token = creaetToken(user._id, user.email);
+
+//   const cookieOptions = {
+//     expiresIn: new Date.now(
+//       Date.now() + process.env.COOKIE_EXPIRES * 24 * 60 * 60 * 1000
+//     ),
+//     httpOnly: true,
+//     secure: false,
+//   };
+
+//   res.cookie("jwt", token, cookieOptions);
+// };
 
 exports.singup = CatchAsync(async (req, res, next) => {
   const user = await User.create(
     _.pick(req.body, ["name", "email", "password", "confirmPassword"])
   );
+
+  const token = creaetToken(user._id, user.email);
+
+  const cookieOptions = {
+    expiresIn: new Date.now(
+      Date.now() + process.env.COOKIE_EXPIRES * 24 * 60 * 60 * 1000
+    ),
+    httpOnly: true,
+    secure: false,
+  };
+
+  res.cookie("token", token, cookieOptions);
 
   user.password = undefined;
   user.active = undefined;
@@ -23,10 +56,24 @@ exports.singin = CatchAsync(async (req, res, next) => {
   if (!email || !password)
     return next(new AppError(`Email or password is not provided`, 400));
 
-  const user = await User.findOne({ email }).select(`+password -__v`);
+  const user = await User.findOne({ email }).select(`+password -__v +active`);
+
+  if (!user.active) return next(new AppError(`User is deleted`));
 
   if (!user || !(await user.correctPassword(password, user.password)))
     return next(new AppError(`Invalid Email or Password`, 401));
+
+  const token = creaetToken(user._id, user.email);
+
+  const cookieOptions = {
+    expiresIn: Date.now(
+      Date.now() + process.env.COOKIE_EXPIRES * 24 * 60 * 60 * 1000
+    ),
+    httpOnly: true,
+    secure: false,
+  };
+
+  res.cookie("token", token, cookieOptions);
 
   user.password = undefined;
 
