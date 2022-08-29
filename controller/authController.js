@@ -4,26 +4,13 @@ const CatchAsync = require("../utils/CatchAsync");
 const AppError = require("../utils/ErrorHandler");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { promisify } = require("util");
 
 const creaetToken = (id, email) => {
   return jwt.sign({ id, email }, process.env.JWT_KEY, {
     expiresIn: process.env.JWT_EXP,
   });
 };
-
-// const sendToken = (user, statusCode, res) => {
-//   const token = creaetToken(user._id, user.email);
-
-//   const cookieOptions = {
-//     expiresIn: new Date.now(
-//       Date.now() + process.env.COOKIE_EXPIRES * 24 * 60 * 60 * 1000
-//     ),
-//     httpOnly: true,
-//     secure: false,
-//   };
-
-//   res.cookie("jwt", token, cookieOptions);
-// };
 
 exports.singup = CatchAsync(async (req, res, next) => {
   const user = await User.create(
@@ -47,6 +34,7 @@ exports.singup = CatchAsync(async (req, res, next) => {
 
   res.status(201).json({
     status: `Success`,
+    token,
     data: { user },
   });
 });
@@ -79,6 +67,7 @@ exports.singin = CatchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: `Success`,
+    token,
     data: { user },
   });
 });
@@ -128,4 +117,27 @@ exports.resetPassword = CatchAsync(async (req, res, next) => {
     status: `Success`,
     message: `Password has been changed please login with your new password`,
   });
+});
+
+exports.protect = CatchAsync(async (req, res, next) => {
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  } else if (req.cookies?.token) {
+    token = req.cookies.token;
+  }
+
+  if (!token)
+    return next(new AppError(`Not logged in please login to get acess`, 401));
+
+  const decode = await promisify(jwt.verify)(token, process.env.JWT_KEY);
+
+  const currentUser = await User.findById(decode.id);
+  if (!currentUser) return next(new AppError(`User doesnot exists`, 401));
+
+  req.user = currentUser;
+  next();
 });
